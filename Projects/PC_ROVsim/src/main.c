@@ -203,7 +203,7 @@ void  store_joypacket()
           if( Dpacket[1]== 50) //Buttons
           {
             int k=0;
-            for(int i=3;i<9;i+=2) 
+            for(int i=3;i<Dpacket[2]+3;i+=2) 
             {
               ROV_joy.button[k]= Dpacket[i]  ;
               k++;
