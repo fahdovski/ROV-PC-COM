@@ -42,6 +42,7 @@ void send_ack()   ;
 void send_nack()   ;  
 void store_joypacket()  ;
 void print_joystick();  
+void debug_trame();
     
 uint8_t Dpacket[13];
 uint16_t Rov_state=0;
@@ -98,7 +99,7 @@ int main(void)
 	When a packet is received from the PC on the OUT pipe (EP3), EP3_IN_Callback will process the receive data.
 	To receive something to the STM32 data are stored in the Receive_Buffer[] by calling CDC_Receive_DATA() */
       CDC_Receive_DATA();
-       
+      
       //Check to see if we have data yet 
       if (Receive_length  != 0)
       {        
@@ -106,34 +107,45 @@ int main(void)
         {
            for(int i=0;i< Receive_length ;i++)
               Dpacket[i] =  Receive_Buffer[i]; //copy tab to static var to avoid compiler warning
+            
+           uint8_t error_packet =check_crc(Dpacket,Receive_length);
            
-                if( check_crc(Dpacket,Receive_length)==0 )
-                {                
-                 //  sprintf(str,"crc_rem: %x crc_local: %x", crc_remote, crc);
-                 //  USART_puts( USART1, str);
+                if( error_packet ==0 )
+                {         
+                   if (packet_sent == 1)
+                        send_ack();
+                   
+                   sprintf(str,"CRC1: %d ", error_packet);
+                   USART_puts( USART1, str);
                   //CRC is OK send ACK to PC
-                    if (packet_sent == 1)
-                    send_ack();
+                   
                 }
                else
                 {
-                 //  sprintf(str,"crc_rem: %x crc_local: %x", crc_remote, crc);
-                 //  USART_puts( USART1, str);
+                    if (packet_sent == 1)
+                        send_nack();    
+                
+                   sprintf(str,"CRC2: %d ", error_packet);
+                   USART_puts( USART1, str);
               //CRC is NOK send NACK to PC
-                if (packet_sent == 1)
-                send_nack();               
+                         
                 }
             
                 if( Dpacket[1] == 1) //Init ROV
                 {
                 Rov_state = Dpacket[3] << 8 | Dpacket[4]; 
-                sprintf(str,"State: %x ", Rov_state);
-                USART_puts( USART1, str);
+                
+               // sprintf(str,"State: %x ", Rov_state);
+               // USART_puts( USART1, str);
                 }
                 else if(Rov_state == 0xFAFE && Dpacket[1] >= 45 && Dpacket[1] <= 50) // Joystick Packet
                 {
-                 store_joypacket();
+                 store_joypacket();      
                  print_joystick(); //Display only
+                }
+                else if   (Dpacket[1] == 2) //Debug test
+                {
+                  debug_trame();
                 }
        }
      }
@@ -141,6 +153,7 @@ int main(void)
      {
         STM_EVAL_LEDToggle(LED4);
      }
+       
      //reset packet
        for(int i=0;i< 13 ;i++) 
               Dpacket[i] = 0; 
@@ -155,6 +168,18 @@ int main(void)
    
     
  }//End while(1)
+}
+
+void debug_trame()
+{
+   char strx[50];
+  USART_puts( USART1, "Debug: ");
+  for(int i=0;i<13;i++)
+  {
+   sprintf(strx,"%d, ",Dpacket[i]);
+   USART_puts( USART1, strx);
+  }
+  USART_puts( USART1, "\n");
 }
 
 int check_range(void)
@@ -215,10 +240,12 @@ void  store_joypacket()
 
 void print_joystick()
 {
-   char strx[100];
-   USART_puts( USART1, "JOYSTICK: \n");
-   sprintf(strx,"X:%d Y:%d Rz:%d Slider:%d Pov:%d Buttons:%d %d %d %d %d %d \n",ROV_joy.X,ROV_joy.Y,ROV_joy.Rz,ROV_joy.slider, ROV_joy.pov,ROV_joy.button[0],ROV_joy.button[1],ROV_joy.button[2],ROV_joy.button[3],ROV_joy.button[4],ROV_joy.button[5]);
+  char strx[50];
+   USART_puts( USART1, "JOYSTICK: ");
+   sprintf(strx,"X:%d Y:%d Rz:%d\t",ROV_joy.X,ROV_joy.Y,ROV_joy.Rz);
+ //  sprintf(strx,"X:%d Y:%d Rz:%d Slider:%d Pov:%d Buttons:%d %d %d %d %d %d \n",ROV_joy.X,ROV_joy.Y,ROV_joy.Rz,ROV_joy.slider, ROV_joy.pov,ROV_joy.button[0],ROV_joy.button[1],ROV_joy.button[2],ROV_joy.button[3],ROV_joy.button[4],ROV_joy.button[5]);
    USART_puts( USART1, strx);
+   USART_puts( USART1, "\t");
 }
 
 /**
