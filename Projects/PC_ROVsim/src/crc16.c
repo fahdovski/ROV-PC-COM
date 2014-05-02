@@ -25,6 +25,17 @@ int check_crc(volatile uint8_t  *buff, uint8_t length)
 
 }
 
+uint16_t compute_crc(volatile uint8_t  *buff, uint8_t length)
+{    
+  //Header +ID + Datalength + DATA (max 8 bytes) + CRCH + CRCL)  
+         
+                      
+            crc = 0xFFFF;
+            for (int i = 0; i < length-2; i++) 
+                crc = crc16(crc, buff[i]);
+            
+            return crc;
+}
 
   const unsigned short crc_table[256] = {
    0x0000, 0x1189, 0x2312, 0x329b, 0x4624, 0x57ad, 0x6536, 0x74bf,

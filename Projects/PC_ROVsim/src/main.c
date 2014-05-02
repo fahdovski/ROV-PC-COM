@@ -37,6 +37,7 @@
 #include "crc16.h"
     
 struct JOYSTICK ROV_joy ;    
+struct ROV_STRM ROV_stream ;   
 int check_range(void);
 void send_ack()   ;
 void send_nack()   ;  
@@ -54,12 +55,16 @@ uint8_t Send_Buffer[64];
 uint32_t packet_sent=1;
 uint32_t packet_receive=1;
 
+uint8_t Tx_buffer[13]; 
 uint16_t crc_remote,crc;
 
 static __IO uint32_t TimingDelay;
+static __IO uint32_t TimingCounter=0;
 void Delay(__IO uint32_t nTime);
 void Led_init(void);
-
+void TimeSending();
+void Packet_CMD(uint8_t CMD_Header, uint8_t CMD_ID,uint8_t CMD_Size,uint8_t *CMD_Data);
+        
 /*******************************************************************************
 * Function Name  : main.
 * Descriptioan    : Main routine.
@@ -82,6 +87,7 @@ int main(void)
     STM_EVAL_LEDOn(LED10);
     while (1);
   }
+  
   //Convert float to string
    char str[30];
    /* float flt = 2.4567F;
@@ -112,7 +118,7 @@ int main(void)
            
                 if( error_packet ==0 )
                 {         
-                   if (packet_sent == 1)
+                  
                         send_ack();
                    
                    sprintf(str,"CRC1: %d ", error_packet);
@@ -122,7 +128,6 @@ int main(void)
                 }
                else
                 {
-                    if (packet_sent == 1)
                         send_nack();    
                 
                    sprintf(str,"CRC2: %d ", error_packet);
@@ -138,23 +143,26 @@ int main(void)
                // sprintf(str,"State: %x ", Rov_state);
                // USART_puts( USART1, str);
                 }
+                
                 else if(Rov_state == 0xFAFE && Dpacket[1] >= 45 && Dpacket[1] <= 50) // Joystick Packet
                 {
                  store_joypacket();      
                  print_joystick(); //Display only
                 }
+                
                 else if   (Dpacket[1] == 2) //Debug test
                 {
                   debug_trame();
                 }
        }
      }
-     else
-     {
-        STM_EVAL_LEDToggle(LED4);
-     }
-       
-     //reset packet
+
+          
+      if(  Rov_state == 0xFAFE ) //Send only if rov is initialized
+        TimeSending();
+        
+      
+           //reset packet
        for(int i=0;i< 13 ;i++) 
               Dpacket[i] = 0; 
            
@@ -189,23 +197,88 @@ int check_range(void)
 
 void send_ack()
 {     
-  uint8_t Tx_buffer[3];
-  Tx_buffer[0]=  0xFB;
-  Tx_buffer[1]= (uint8_t)(60000 >> 8);
-  Tx_buffer[2]= (uint8_t)(60000 & 0x00FF);
+  uint8_t local_buffer[3];
+  local_buffer[0]=  0xFB;
+  local_buffer[1]= (uint8_t)(60000 >> 8);
+  local_buffer[2]= (uint8_t)(60000 & 0x00FF);
     
-  CDC_Send_DATA (Tx_buffer,3);
+   if (packet_sent == 1)
+  CDC_Send_DATA (local_buffer,3);
 }
 
 void send_nack()
 {
-  uint8_t Tx_buffer[3];
-  Tx_buffer[0]=  0xFB;
-  Tx_buffer[1]= (uint8_t)(60001 >> 8);
-  Tx_buffer[2]= (uint8_t)(60001 & 0x00FF);
+  uint8_t local_buffer[3];
+  local_buffer[0]=  0xFB;
+  local_buffer[1]= (uint8_t)(60001 >> 8);
+  local_buffer[2]= (uint8_t)(60001 & 0x00FF);
     
-  CDC_Send_DATA (Tx_buffer,3);
+   if (packet_sent == 1)
+  CDC_Send_DATA (local_buffer,3);
 }
+
+
+typedef union _data {
+  float f;
+  uint8_t  s[4];
+} myData;
+myData q;
+
+
+
+
+
+
+float Euler[3]={0.5,-35.7,180}; //Roll[-pi/pi] Pitch[-pi/2,pi/2] Yaw[-pi,pi]
+float depth=35.4;//meters
+float current=13.4,voltage=230;
+float Thruster[6]={1000,1100,1200,1300,1400,1500};
+
+ void Packet_CMD(uint8_t CMD_Header, uint8_t CMD_ID,uint8_t CMD_Size,uint8_t *CMD_Data)
+        {
+        
+          //Header 1byte
+           Tx_buffer[0]=CMD_Header;
+          //ID 1byte
+           Tx_buffer[1]=CMD_ID;
+          //Length 1byte
+           Tx_buffer[2]=CMD_Size;
+          //Data (max 8 byte)
+           for(int i=0;i<CMD_Size;i++)
+           Tx_buffer[i+3]=CMD_Data[i] ;
+          //Crc (2byte)
+          uint16_t comp_crc= compute_crc(Tx_buffer, CMD_Size+3);
+           Tx_buffer[CMD_Size]= (uint8_t)(comp_crc >> 8);
+           Tx_buffer[CMD_Size+1]=(uint8_t)(comp_crc & 0x00FF);
+             
+            
+          
+        }
+
+void sendstrm_float(float data ,uint8_t id)
+{
+  q.f=data;//convert float to  byte tab
+  Packet_CMD(0xFE, id,4,q.s); //update Tx buffer
+   if (packet_sent == 1)
+  CDC_Send_DATA(Tx_buffer,4);
+}
+
+
+void sendstrm_uint16(uint16_t data ,uint8_t id)
+{
+  uint8_t spckt[2];
+  spckt[0] =(uint8_t)(data >> 8);
+  spckt[1] =(uint8_t)(data & 0x00FF);
+  
+  Packet_CMD(0xFE, id,2,spckt); //update Tx buffer
+   if (packet_sent == 1)
+  CDC_Send_DATA(Tx_buffer,2);
+}
+
+
+
+
+
 
 void  store_joypacket()
 {
@@ -242,7 +315,7 @@ void print_joystick()
 {
   char strx[50];
    USART_puts( USART1, "JOYSTICK: ");
-   sprintf(strx,"X:%d Y:%d Rz:%d\t",ROV_joy.X,ROV_joy.Y,ROV_joy.Rz);
+   sprintf(strx,"X:%d t",ROV_joy.X);
  //  sprintf(strx,"X:%d Y:%d Rz:%d Slider:%d Pov:%d Buttons:%d %d %d %d %d %d \n",ROV_joy.X,ROV_joy.Y,ROV_joy.Rz,ROV_joy.slider, ROV_joy.pov,ROV_joy.button[0],ROV_joy.button[1],ROV_joy.button[2],ROV_joy.button[3],ROV_joy.button[4],ROV_joy.button[5]);
    USART_puts( USART1, strx);
    USART_puts( USART1, "\t");
@@ -271,6 +344,40 @@ void TimingDelay_Decrement(void)
   { 
     TimingDelay--;
   }
+}
+
+void TimingCounter_Increment(void)
+{
+  if(TimingCounter <100)
+  TimingCounter++;
+  else
+  TimingCounter=0;
+}
+
+void TimeSending(void) //send Mandatory streaming data to PC
+{
+  
+   if (TimingCounter>=20) // send @50hz
+   {
+    sendstrm_float(ROV_stream.roll,80); 
+    sendstrm_float(ROV_stream.pitch,81); 
+    sendstrm_float(ROV_stream.yaw,82); 
+   
+    sendstrm_float(ROV_stream.current,102); 
+    sendstrm_float(ROV_stream.voltage,103); 
+    
+   
+   }
+     
+    
+  else if (TimingCounter>=100) //send @10Hz
+  {
+     sendstrm_float(ROV_stream.depth,83); 
+     
+      for(int i=0;i<6;i++)
+    sendstrm_uint16(ROV_stream.thruster[i] ,39+i);
+  }
+ 
 }
 
 void Led_init(void)

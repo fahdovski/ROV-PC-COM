@@ -156,6 +156,7 @@ void PendSV_Handler(void)
 *******************************************************************************/
 void SysTick_Handler(void)
 {
+ TimingCounter_Increment(); //increment every 1ms
  TimingDelay_Decrement();
 }
 

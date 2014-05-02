@@ -55,7 +55,7 @@ void LCD_Control(void);
 uint32_t CDC_Send_DATA (uint8_t *ptrBuffer, uint8_t Send_length);
 uint32_t CDC_Receive_DATA(void);
 void TimingDelay_Decrement(void);
-
+void TimingCounter_Increment(void);
 /* External variables --------------------------------------------------------*/
 
 #endif  /*__HW_CONFIG_H*/
