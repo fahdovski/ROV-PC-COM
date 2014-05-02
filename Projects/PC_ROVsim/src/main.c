@@ -64,7 +64,7 @@ void Delay(__IO uint32_t nTime);
 void Led_init(void);
 void TimeSending();
 void Packet_CMD(uint8_t CMD_Header, uint8_t CMD_ID,uint8_t CMD_Size,uint8_t *CMD_Data);
-        
+void init_streaming();
 /*******************************************************************************
 * Function Name  : main.
 * Descriptioan    : Main routine.
@@ -92,7 +92,7 @@ int main(void)
    char str[30];
    /* float flt = 2.4567F;
     sprintf(str, "%.4f", flt );   */
-  
+  init_streaming();
   
    STM_EVAL_LEDOn(LED3);  
      
@@ -225,14 +225,25 @@ typedef union _data {
 myData q;
 
 
+void init_streaming()
+{
+  ROV_stream.roll = 0.50f;
+  ROV_stream.pitch = 45.40f;
+  ROV_stream.yaw = -180.0f;
+  
+  ROV_stream.depth = 12.46f;
+  
+  ROV_stream.current = 25.0f;
+  ROV_stream.voltage = 230;
+  
+  for(int i=0;i<6;i++)
+  ROV_stream.thruster[i]= 1000+(100*i);
+  
+}
 
 
 
 
-float Euler[3]={0.5,-35.7,180}; //Roll[-pi/pi] Pitch[-pi/2,pi/2] Yaw[-pi,pi]
-float depth=35.4;//meters
-float current=13.4,voltage=230;
-float Thruster[6]={1000,1100,1200,1300,1400,1500};
 
  void Packet_CMD(uint8_t CMD_Header, uint8_t CMD_ID,uint8_t CMD_Size,uint8_t *CMD_Data)
         {
@@ -271,6 +282,8 @@ void sendstrm_uint16(uint16_t data ,uint8_t id)
   spckt[1] =(uint8_t)(data & 0x00FF);
   
   Packet_CMD(0xFE, id,2,spckt); //update Tx buffer
+  
+  
    if (packet_sent == 1)
   CDC_Send_DATA(Tx_buffer,2);
 }
@@ -365,8 +378,7 @@ void TimeSending(void) //send Mandatory streaming data to PC
    
     sendstrm_float(ROV_stream.current,102); 
     sendstrm_float(ROV_stream.voltage,103); 
-    
-   
+
    }
      
     
