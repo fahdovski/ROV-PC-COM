@@ -35,7 +35,7 @@
 #include "stdio.h"
 #include "rov_desc.h"
 #include "crc16.h"
-    
+#include "stdbool.h"    
 struct JOYSTICK ROV_joy ;    
 struct ROV_STRM ROV_stream ;   
 int check_range(void);
@@ -44,7 +44,9 @@ void send_nack()   ;
 void store_joypacket()  ;
 void print_joystick();  
 void debug_trame();
-    
+
+bool check_ack();
+
 uint8_t Dpacket[13];
 uint16_t Rov_state=0;
 
@@ -57,6 +59,7 @@ uint32_t packet_receive=1;
 
 uint8_t Tx_buffer[13]; 
 uint16_t crc_remote,crc;
+uint16_t pack_counter=0;
 
 static __IO uint32_t TimingDelay;
 static __IO uint32_t TimingCounter=0;
@@ -119,18 +122,18 @@ int main(void)
                 if( error_packet ==0 )
                 {         
                   
-                        send_ack();
-                   
-                   sprintf(str,"CRC1: %d ", error_packet);
+                   send_ack();
+                   pack_counter++;
+                   sprintf(str,"%d ",pack_counter);
                    USART_puts( USART1, str);
                   //CRC is OK send ACK to PC
                    
                 }
                else
                 {
-                        send_nack();    
+                   send_nack();    
                 
-                   sprintf(str,"CRC2: %d ", error_packet);
+                   sprintf(str,"CRC Fail");
                    USART_puts( USART1, str);
               //CRC is NOK send NACK to PC
                          
@@ -144,22 +147,40 @@ int main(void)
                // USART_puts( USART1, str);
                 }
                 
-                else if(Rov_state == 0xFAFE && Dpacket[1] >= 45 && Dpacket[1] <= 50) // Joystick Packet
-                {
-                 store_joypacket();      
-                 print_joystick(); //Display only
-                }
-                
                 else if   (Dpacket[1] == 2) //Debug test
                 {
                   debug_trame();
                 }
+                
+                else if(Rov_state == 0xFAFE && Dpacket[1] >= 45 && Dpacket[1] <= 50) // Joystick Packet
+                {
+                 store_joypacket();      
+                 print_joystick(); //Display only
+                }     
        }
+       else if ( Receive_Buffer[0]==0xFB &&  Receive_length == 3)// CMD Packet
+        {
+                         for(int i=0;i< Receive_length ;i++)
+                              Dpacket[i] =  Receive_Buffer[i]; //copy tab to static var to avoid compiler warning
+              
+              if(!check_ack())
+              {
+                //ack failed
+                 sprintf(str,"ACK Fail ");
+                   USART_puts( USART1, str);
+              }
+              else
+              {
+                 sprintf(str,"ACK Success ");
+                   USART_puts( USART1, str);
+              }
+
+        }
      }
 
           
-      if(  Rov_state == 0xFAFE ) //Send only if rov is initialized
-        TimeSending();
+      //if(  Rov_state == 0xFAFE ) //Send only if rov is initialized
+     //   TimeSending();
         
       
            //reset packet
@@ -176,6 +197,22 @@ int main(void)
    
     
  }//End while(1)
+}
+
+
+bool check_ack()
+{
+    bool Tx_done=false;
+    uint16_t  Rx_ID = (uint16_t)((Dpacket[1] << 8) | Dpacket[2]);
+                if (Rx_ID == 60000)
+                {
+                    Tx_done = true; //ack ok                   
+                }
+                else if (Rx_ID == 60001)
+                {
+                    Tx_done = false; //ack nok
+                }  
+         return Tx_done;
 }
 
 void debug_trame()
@@ -296,7 +333,7 @@ void sendstrm_uint16(uint16_t data ,uint8_t id)
 void  store_joypacket()
 {
  
-          if( Dpacket[1]== 45) //X axis -1000 ,1000 range
+          if( Dpacket[1]== 45) //X axis 0 ,65535 range
           ROV_joy.X= Dpacket[3] << 8 | Dpacket[4];
           
           if( Dpacket[1]== 46) //Y axis
@@ -370,8 +407,8 @@ void TimingCounter_Increment(void)
 void TimeSending(void) //send Mandatory streaming data to PC
 {
   
-   if (TimingCounter>=20) // send @50hz
-   {
+  if (TimingCounter>=20) // send @50hz
+  {
     sendstrm_float(ROV_stream.roll,80); 
     sendstrm_float(ROV_stream.pitch,81); 
     sendstrm_float(ROV_stream.yaw,82); 
@@ -379,9 +416,8 @@ void TimeSending(void) //send Mandatory streaming data to PC
     sendstrm_float(ROV_stream.current,102); 
     sendstrm_float(ROV_stream.voltage,103); 
 
-   }
+  }
      
-    
   else if (TimingCounter>=100) //send @10Hz
   {
      sendstrm_float(ROV_stream.depth,83); 

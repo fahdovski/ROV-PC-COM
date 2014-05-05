@@ -26,7 +26,7 @@ ITMportsTermIO=0
 ITMportsLogFile=0
 ITMlogFile=$PROJ_DIR$\ITM.log
 [DebugChecksum]
-Checksum=1252005430
+Checksum=453775064
 [Exceptions]
 StopOnUncaught=_ 0
 StopOnThrow=_ 0
@@ -63,10 +63,6 @@ GraphEnabled=0
 ShowTimeLog=1
 ShowTimeSum=1
 SumSortOrder=0
-[Disassemble mode]
-mode=0
-[Breakpoints2]
-Count=0
 [Log file]
 LoggingEnabled=_ 0
 LogFile=_ ""
@@ -74,13 +70,6 @@ Category=_ 0
 [TermIOLog]
 LoggingEnabled=_ 0
 LogFile=_ ""
-[Aliases]
-A0=_ "C:\Users\fahdovski\Downloads\STM32_USB-FS-Device_Lib_V4.0.0\Libraries\STM32F30x_StdPeriph_Driver\src\stm32f30x_rcc.c" ""
-A1=_ "C:\Users\fahdovski\Downloads\STM32_USB-FS-Device_Lib_V4.0.0\Libraries\STM32_USB-FS-Device_Driver\src\usb_mem.c" ""
-A2=_ "C:\Users\fahdovski\Downloads\STM32_USB-FS-Device_Lib_V4.0.0\Libraries\STM32_USB-FS-Device_Driver\src\usb_regs.c" ""
-A3=_ "C:\Users\fahdovski\Downloads\STM32_USB-FS-Device_Lib_V4.0.0\Utilities\STM32_EVAL\STM32303C_EVAL\stm32303c_eval.c" ""
-Count=4
-SuppressDialog=1
 [CallStackLog]
 Enabled=0
 [DriverProfiling]
@@ -89,3 +78,14 @@ Mode=3
 Graph=0
 Symbiont=0
 Exclusions=
+[Disassemble mode]
+mode=0
+[Breakpoints2]
+Count=0
+[Aliases]
+A0=_ "C:\Users\fahdovski\Downloads\STM32_USB-FS-Device_Lib_V4.0.0\Libraries\STM32F30x_StdPeriph_Driver\src\stm32f30x_rcc.c" ""
+A1=_ "C:\Users\fahdovski\Downloads\STM32_USB-FS-Device_Lib_V4.0.0\Libraries\STM32_USB-FS-Device_Driver\src\usb_mem.c" ""
+A2=_ "C:\Users\fahdovski\Downloads\STM32_USB-FS-Device_Lib_V4.0.0\Libraries\STM32_USB-FS-Device_Driver\src\usb_regs.c" ""
+A3=_ "C:\Users\fahdovski\Downloads\STM32_USB-FS-Device_Lib_V4.0.0\Utilities\STM32_EVAL\STM32303C_EVAL\stm32303c_eval.c" ""
+Count=4
+SuppressDialog=1
